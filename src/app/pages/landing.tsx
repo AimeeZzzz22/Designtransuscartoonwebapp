@@ -1,7 +1,7 @@
 import { Heart, Sparkles, MessageCircle, Shield, Target, Lightbulb, ArrowRight } from "lucide-react";
 import { Link } from "react-router";
-import conflictImage1 from "figma:asset/cf687a8a0ddbde552bce3678d50d3ab9d72d5fac.png";
-import conflictImage2 from "figma:asset/8c7ff9dd3d60a594afb09bd753aeaf55e0f016fe.png";
+import conflictImage1 from "../../assets/conflict-1.png";
+import conflictImage2 from "../../assets/conflict-2.png";
 
 export function Landing() {
   return (
