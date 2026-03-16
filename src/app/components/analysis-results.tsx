@@ -1,11 +1,40 @@
 import { Heart, Brain, AlertCircle, Wand2, Compass, Shield, Sparkles } from "lucide-react";
 
+type SafetyFlag = "none" | "abuse" | "coercion" | "threat" | "self_harm" | "other_risk";
+
+type ConflictAnalysis = {
+  partner_a_feelings: string[];
+  partner_b_feelings: string[];
+  partner_a_intent: string;
+  partner_b_intent: string;
+  misunderstanding: string;
+  reframes: string[];
+  next_prompt: string;
+  safety_flag: SafetyFlag;
+};
+
 interface AnalysisResultsProps {
   partnerAText: string;
   partnerBText: string;
+  analysis: ConflictAnalysis | null;
 }
 
-export function AnalysisResults({ partnerAText, partnerBText }: AnalysisResultsProps) {
+const safetyMessages: Record<SafetyFlag, string> = {
+  none: "No specific safety risk detected in this conversation. This appears to be a common misunderstanding that may be resolved through clearer communication.",
+  abuse: "There may be signs of abuse or controlling behavior. Consider reaching out to a trusted person, professional, or local support service.",
+  coercion:
+    "There may be signs of coercion or pressure. You might want to talk with a trusted friend, advocate, or professional resource.",
+  threat:
+    "There may be threats or intimidation present. If you feel unsafe, consider contacting local emergency services or a crisis hotline.",
+  self_harm:
+    "There may be indications of self-harm or suicidality. If you or someone else may be in immediate danger, contact local emergency services or a crisis hotline.",
+  other_risk:
+    "There may be some safety concerns present. Consider seeking advice from professional, legal, or crisis resources.",
+};
+
+export function AnalysisResults({ partnerAText, partnerBText, analysis }: AnalysisResultsProps) {
+  const hasAI = !!analysis;
+
   return (
     <div className="space-y-10">
       {/* Results Header */}
@@ -26,15 +55,31 @@ export function AnalysisResults({ partnerAText, partnerBText }: AnalysisResultsP
           badge="Partner A"
           badgeColor="#FF8C42"
         >
-          <p className="text-base text-foreground leading-relaxed">
-            Partner A seems to be feeling <strong>neglected and unimportant</strong>. The lack of response triggered 
-            feelings of being undervalued in the relationship. There's also an underlying <strong>fear of emotional distance</strong> growing between you.
-          </p>
-          <div className="mt-6 flex flex-wrap gap-2">
-            <EmotionTag color="#FF9EC5">Neglected</EmotionTag>
-            <EmotionTag color="#FF9EC5">Undervalued</EmotionTag>
-            <EmotionTag color="#FF9EC5">Worried</EmotionTag>
-          </div>
+          {hasAI ? (
+            <>
+              <p className="text-base text-foreground leading-relaxed">
+                Partner A may be experiencing:
+              </p>
+              <ul className="mt-4 list-disc list-inside space-y-1 text-base text-foreground">
+                {analysis!.partner_a_feelings.map((f, idx) => (
+                  <li key={idx}>{f}</li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <>
+              <p className="text-base text-foreground leading-relaxed">
+                Partner A seems to be feeling <strong>neglected and unimportant</strong>. The lack of response triggered
+                feelings of being undervalued in the relationship. There's also an underlying{" "}
+                <strong>fear of emotional distance</strong> growing between you.
+              </p>
+              <div className="mt-6 flex flex-wrap gap-2">
+                <EmotionTag color="#FF9EC5">Neglected</EmotionTag>
+                <EmotionTag color="#FF9EC5">Undervalued</EmotionTag>
+                <EmotionTag color="#FF9EC5">Worried</EmotionTag>
+              </div>
+            </>
+          )}
         </ResultCard>
 
         <ResultCard
@@ -44,16 +89,31 @@ export function AnalysisResults({ partnerAText, partnerBText }: AnalysisResultsP
           badge="Partner B"
           badgeColor="#7FC7AF"
         >
-          <p className="text-base text-foreground leading-relaxed">
-            Partner B appears to be experiencing <strong>overwhelm and stress</strong> from external pressures. 
-            They may also feel <strong>guilty</strong> for not being able to respond, combined with a sense of 
-            being <strong>misunderstood</strong> about their intentions.
-          </p>
-          <div className="mt-6 flex flex-wrap gap-2">
-            <EmotionTag color="#7FC7AF">Overwhelmed</EmotionTag>
-            <EmotionTag color="#7FC7AF">Guilty</EmotionTag>
-            <EmotionTag color="#7FC7AF">Stressed</EmotionTag>
-          </div>
+          {hasAI ? (
+            <>
+              <p className="text-base text-foreground leading-relaxed">
+                Partner B may be experiencing:
+              </p>
+              <ul className="mt-4 list-disc list-inside space-y-1 text-base text-foreground">
+                {analysis!.partner_b_feelings.map((f, idx) => (
+                  <li key={idx}>{f}</li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <>
+              <p className="text-base text-foreground leading-relaxed">
+                Partner B appears to be experiencing <strong>overwhelm and stress</strong> from external pressures.
+                They may also feel <strong>guilty</strong> for not being able to respond, combined with a sense of
+                being <strong>misunderstood</strong> about their intentions.
+              </p>
+              <div className="mt-6 flex flex-wrap gap-2">
+                <EmotionTag color="#7FC7AF">Overwhelmed</EmotionTag>
+                <EmotionTag color="#7FC7AF">Guilty</EmotionTag>
+                <EmotionTag color="#7FC7AF">Stressed</EmotionTag>
+              </div>
+            </>
+          )}
         </ResultCard>
       </div>
 
@@ -67,12 +127,13 @@ export function AnalysisResults({ partnerAText, partnerBText }: AnalysisResultsP
           badgeColor="#FFD166"
         >
           <p className="text-base text-foreground leading-relaxed">
-            Partner A likely meant to express <strong>a need for reassurance and connection</strong>, not to criticize. 
-            The underlying message is: <em>"I miss feeling close to you and I need to know I still matter."</em>
+            {hasAI
+              ? analysis!.partner_a_intent
+              : "Partner A likely meant to express a need for reassurance and connection, not to criticize."}
           </p>
           <div className="mt-6 p-5 bg-[#FFF9EE] rounded-2xl border-2 border-[#F5E6D3]">
             <p className="text-sm text-muted-foreground italic">
-              💭 "I'm reaching out because our connection is important to me"
+              💭 {hasAI ? partnerAText || "I'm reaching out because our connection is important to me." : "I'm reaching out because our connection is important to me"}
             </p>
           </div>
         </ResultCard>
@@ -85,12 +146,13 @@ export function AnalysisResults({ partnerAText, partnerBText }: AnalysisResultsP
           badgeColor="#EF476F"
         >
           <p className="text-base text-foreground leading-relaxed">
-            Partner B's intention was likely to <strong>protect their mental space</strong> during a difficult time, 
-            not to hurt. The underlying message is: <em>"I care about you but I'm struggling to manage everything right now."</em>
+            {hasAI
+              ? analysis!.partner_b_intent
+              : "Partner B's intention was likely to protect their mental space during a difficult time, not to hurt."}
           </p>
           <div className="mt-6 p-5 bg-[#FFF9EE] rounded-2xl border-2 border-[#F5E6D3]">
             <p className="text-sm text-muted-foreground italic">
-              💭 "I need space to cope, but it doesn't mean I don't care"
+              💭 {hasAI ? partnerBText || "I need space to cope, but it doesn't mean I don't care." : "I need space to cope, but it doesn't mean I don't care"}
             </p>
           </div>
         </ResultCard>
@@ -107,9 +169,9 @@ export function AnalysisResults({ partnerAText, partnerBText }: AnalysisResultsP
       >
         <div className="space-y-6">
           <p className="text-base text-foreground leading-relaxed">
-            The core misunderstanding is about <strong>the meaning of silence</strong>. Partner A interpreted the lack of response 
-            as lack of care, while Partner B's silence was actually a coping mechanism for stress, not a reflection of their feelings 
-            toward Partner A.
+            {hasAI
+              ? analysis!.misunderstanding
+              : "The core misunderstanding is about the meaning of silence. Partner A interpreted a lack of response as lack of care, while Partner B's silence was a coping mechanism for stress."}
           </p>
           <div className="grid md:grid-cols-2 gap-6">
             <div className="p-6 bg-[#FFF9EE] rounded-2xl border-2 border-[#F5E6D3]">
@@ -146,8 +208,7 @@ export function AnalysisResults({ partnerAText, partnerBText }: AnalysisResultsP
             </div>
             <div className="bg-[#FFF9EE] p-6 rounded-2xl border-l-4 border-[#FF8C42]">
               <p className="text-base text-foreground leading-relaxed">
-                "I've been feeling a bit disconnected lately when I don't hear from you. I know you're busy—could we 
-                check in more often so I feel close to you?"
+                {hasAI ? analysis!.reframes[0] ?? "" : "I've been feeling a bit disconnected lately when I don't hear from you. I know you're busy—could we check in more often so I feel close to you?"}
               </p>
             </div>
           </div>
@@ -161,8 +222,7 @@ export function AnalysisResults({ partnerAText, partnerBText }: AnalysisResultsP
             </div>
             <div className="bg-[#FFF9EE] p-6 rounded-2xl border-l-4 border-[#7FC7AF]">
               <p className="text-base text-foreground leading-relaxed">
-                "I'm going through a lot right now and need some quiet time to process. It's not about you—I really value us. 
-                Can we find a balance that works for both of us?"
+                {hasAI ? analysis!.reframes[1] ?? "" : "I'm going through a lot right now and need some quiet time to process. It's not about you—I really value us. Can we find a balance that works for both of us?"}
               </p>
             </div>
           </div>
@@ -180,7 +240,9 @@ export function AnalysisResults({ partnerAText, partnerBText }: AnalysisResultsP
       >
         <div className="space-y-6">
           <p className="text-base text-foreground leading-relaxed">
-            Now that you both understand each other's feelings and intentions better, here are some questions to reflect on together:
+            {hasAI
+              ? analysis!.next_prompt
+              : "Now that you both understand each other's feelings and intentions better, here are some questions to reflect on together:"}
           </p>
           <div className="space-y-5">
             <ReflectionQuestion number={1}>
@@ -206,7 +268,7 @@ export function AnalysisResults({ partnerAText, partnerBText }: AnalysisResultsP
         icon={<Shield className="w-6 h-6" />}
         color="#7FC7AF"
         title="Safety check"
-        badge="All Clear"
+        badge={analysis ? (analysis.safety_flag === "none" ? "All Clear" : "Safety Note") : "All Clear"}
         badgeColor="#7FC7AF"
         wide
       >
@@ -216,12 +278,11 @@ export function AnalysisResults({ partnerAText, partnerBText }: AnalysisResultsP
           </div>
           <div className="space-y-4">
             <p className="text-base text-foreground leading-relaxed">
-              ✅ No concerning patterns detected in this conversation. This appears to be a common misunderstanding that can be 
-              resolved through clearer communication.
+              {analysis ? safetyMessages[analysis.safety_flag] : "✅ No concerning patterns detected in this conversation. This appears to be a common misunderstanding that can be resolved through clearer communication."}
             </p>
             <p className="text-sm text-muted-foreground">
-              Remember: TransUs is a reflection tool, not therapy. If you're experiencing ongoing communication difficulties, 
-              consider speaking with a relationship counselor.
+              Remember: TransUs is a reflection tool, not therapy. If you're experiencing ongoing communication difficulties
+              or safety concerns, consider speaking with a relationship counselor or local support resource.
             </p>
           </div>
         </div>

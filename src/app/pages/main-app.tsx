@@ -7,28 +7,72 @@ import { Tabs } from "../components/tabs";
 
 type AppState = "empty" | "loading" | "results";
 
+type SafetyFlag = "none" | "abuse" | "coercion" | "threat" | "self_harm" | "other_risk";
+
+type ConflictAnalysis = {
+  partner_a_feelings: string[];
+  partner_b_feelings: string[];
+  partner_a_intent: string;
+  partner_b_intent: string;
+  misunderstanding: string;
+  reframes: string[];
+  next_prompt: string;
+  safety_flag: SafetyFlag;
+};
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080";
+
 export function MainApp() {
   const [activeTab, setActiveTab] = useState<"type" | "upload" | "voice">("type");
   const [partnerAText, setPartnerAText] = useState("");
   const [partnerBText, setPartnerBText] = useState("");
   const [appState, setAppState] = useState<AppState>("empty");
+  const [analysis, setAnalysis] = useState<ConflictAnalysis | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleAnalyze = () => {
+  const handleAnalyze = async () => {
     if (!partnerAText.trim() || !partnerBText.trim()) {
       return;
     }
-    
+
+    setError(null);
     setAppState("loading");
-    
-    // Simulate API call
-    setTimeout(() => {
+
+    try {
+      const res = await fetch(`${API_BASE}/analyze-conflict`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          partner_a: partnerAText.trim(),
+          partner_b: partnerBText.trim(),
+        }),
+      });
+
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { detail?: string };
+        throw new Error(data.detail ?? "Something went wrong. Please try again.");
+      }
+
+      const data = (await res.json()) as ConflictAnalysis;
+      setAnalysis(data);
       setAppState("results");
-    }, 3000);
+    } catch (e: unknown) {
+      const message =
+        e instanceof Error && e.message
+          ? e.message
+          : "Unexpected error while calling the TransUs API.";
+      setError(message);
+      setAppState("empty");
+    }
   };
 
   const handleReset = () => {
     setPartnerAText("");
     setPartnerBText("");
+    setAnalysis(null);
+    setError(null);
     setAppState("empty");
   };
 
@@ -169,6 +213,13 @@ export function MainApp() {
             )}
           </div>
 
+          {/* Error State */}
+          {error && (
+            <div className="bg-red-50 rounded-3xl p-6 border-2 border-red-200 text-red-800 text-sm">
+              {error}
+            </div>
+          )}
+
           {/* Loading State */}
           {appState === "loading" && (
             <div className="bg-white rounded-3xl p-20 border-2 border-border shadow-xl text-center">
@@ -195,7 +246,11 @@ export function MainApp() {
           {/* Results State */}
           {appState === "results" && (
             <>
-              <AnalysisResults partnerAText={partnerAText} partnerBText={partnerBText} />
+              <AnalysisResults
+                partnerAText={partnerAText}
+                partnerBText={partnerBText}
+                analysis={analysis}
+              />
               <div className="text-center pt-8">
                 <button
                   onClick={handleReset}

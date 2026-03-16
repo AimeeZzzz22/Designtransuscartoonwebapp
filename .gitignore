@@ -1,0 +1,10 @@
+.DS_Store
+node_modules
+dist
+dist-ssr
+*.local
+
+transus-backend/.venv/
+transus-backend/__pycache__/
+transus-backend/*.log
+
