@@ -57,19 +57,19 @@ export function Landing() {
               Discover each other's true feelings, intentions, and misunderstandings.
             </p>
             <div className="flex flex-wrap gap-4 pt-4">
-              <Link 
-                to="/app" 
+              <Link
+                to="/app"
                 className="px-8 py-4 bg-gradient-to-r from-[#FF8C42] to-[#FF9EC5] text-white rounded-2xl hover:shadow-lg hover:shadow-[#FF8C42]/30 transition-all flex items-center gap-2 font-semibold text-lg"
               >
                 Start Reflecting
                 <ArrowRight className="w-5 h-5" />
               </Link>
-              <a 
-                href="#how-it-works" 
+              <Link
+                to="/chat"
                 className="px-8 py-4 bg-white border-2 border-border text-foreground rounded-2xl hover:border-[#FF8C42] hover:shadow-md transition-all flex items-center gap-2 font-semibold text-lg"
               >
-                See How It Works
-              </a>
+                Chat with TransUs
+              </Link>
             </div>
           </div>
           <div className="relative">

@@ -25,6 +25,15 @@ class ConflictAnalysis(BaseModel):
     safety_flag: Literal["none", "abuse", "coercion", "threat", "self_harm", "other_risk"]
 
 
+class ChatMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str
+
+
+class ChatRequest(BaseModel):
+    messages: List[ChatMessage]
+
+
 SYSTEM_INSTRUCTION = """
 You are TransUs, a neutral communication reflection assistant for couples.
 
@@ -59,6 +68,26 @@ Rules:
 - Provide exactly TWO calmer rephrasings in "reframes".
 - Use one of: "none", "abuse", "coercion", "threat", "self_harm", "other_risk" for "safety_flag".
 - Do not include any commentary outside the JSON.
+"""
+
+
+CHAT_SYSTEM_INSTRUCTION = """
+You are TransUs, a neutral relationship reflection assistant chatting with one person at a time.
+
+Your goals:
+- Help the user understand likely emotions, intentions, unmet needs, and misunderstanding points in their conflicts.
+- Stay neutral and do NOT take sides or decide who is right.
+- Use calm, gentle, and tentative language (e.g., "may", "might", "it seems", "could be").
+- Be concise and concrete, and avoid sounding like a therapist or giving professional diagnoses.
+
+Style:
+- Respond in friendly, natural language paragraphs, not JSON.
+- You can sometimes use short bullet points for clarity.
+- You may ask simple follow-up questions to better understand the situation.
+
+Safety:
+- If you notice language suggesting abuse, coercion, threats, or self-harm, respond carefully and encourage the user to consider reaching out to trusted people, local services, or emergency help if needed.
+- Do NOT claim to be an emergency or crisis service.
 """
 
 
@@ -130,6 +159,34 @@ async def analyze_conflict(payload: ConflictInput):
         return analysis
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to parse Gemini response: {e}")
+
+
+@app.post("/chat")
+async def chat(request: ChatRequest):
+    try:
+        gemini_client = get_client()
+    except RuntimeError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    # Gemini expects roles: "user" and "model" (not "assistant")
+    contents = []
+    for m in request.messages:
+        role = "user" if m.role == "user" else "model"
+        contents.append({"role": role, "parts": [{"text": m.content}]})
+
+    try:
+        response = gemini_client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=contents,
+            config={
+                "system_instruction": CHAT_SYSTEM_INSTRUCTION,
+            },
+        )
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Error calling Gemini: {e}")
+
+    reply_text = response.text if hasattr(response, "text") else str(response)
+    return {"reply": reply_text}
 
 
 if __name__ == "__main__":
