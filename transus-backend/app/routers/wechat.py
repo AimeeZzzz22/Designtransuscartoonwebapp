@@ -25,7 +25,10 @@ def verify_webhook(
     nonce: str = Query(""),
     echostr: str = Query(""),
 ):
+    print(f"[WECHAT VERIFY] signature={signature}, timestamp={timestamp}, nonce={nonce}, echostr={echostr}")
+    print(f"[WECHAT VERIFY] token={settings.WECHAT_TOKEN}")
     _verify_or_403(signature, timestamp, nonce)
+    print(f"[WECHAT VERIFY] Verification SUCCESS, returning echostr")
     return PlainTextResponse(content=echostr)
 
 
@@ -71,7 +74,22 @@ async def wechat_webhook(
     if msg_type == "event":
         if event == "subscribe":
             svc.set_subscription_status(openid, True)
-            reply_text = "Hi, I am Transus. I am here whenever you want to talk."
+            reply_text = """你好！我是 TransUs，你的 AI 对话伙伴。💙
+
+我有三种对话模式，你可以选择最适合自己的：
+
+🤗 理解模式 - 温柔倾听，给你温暖和支持
+发送：/理解模式
+
+😈 毒舌模式 - 直接说真话，毫不留情指出问题
+发送：/毒舌模式 或 /毒舌
+
+🧠 治疗师模式 - 深入分析，提供具体建议
+发送：/治疗模式
+
+请选择一个模式开始，或者直接跟我聊天（默认使用理解模式）。
+
+你随时可以发送命令切换模式！"""
         elif event == "unsubscribe":
             svc.set_subscription_status(openid, False)
             return Response(content="success", media_type="text/plain")

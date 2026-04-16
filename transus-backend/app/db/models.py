@@ -14,6 +14,7 @@ class WechatUser(Base):
     openid: Mapped[str] = mapped_column(String(128), unique=True, index=True)
     transus_user_id: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     is_subscribed: Mapped[bool] = mapped_column(Boolean, default=True)
+    chat_mode: Mapped[str] = mapped_column(String(32), default="understanding")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     last_active: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 

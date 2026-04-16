@@ -12,6 +12,43 @@ from app.schemas import ChatMessage
 from app.services.chat_engine import generate_wechat_response
 from app.services.sanitizer import sanitize_user_text
 
+# Mode switching commands
+MODE_COMMANDS = {
+    "/understanding": "understanding",
+    "/理解模式": "understanding",
+    "/sarcastic": "sarcastic",
+    "/毒舌模式": "sarcastic",
+    "/毒舌": "sarcastic",
+    "/therapist": "therapist",
+    "/治疗模式": "therapist",
+    "/咨询模式": "therapist",
+}
+
+MODE_NAMES_CN = {
+    "understanding": "理解模式 🤗",
+    "sarcastic": "毒舌模式 😈",
+    "therapist": "治疗师模式 🧠",
+}
+
+MODE_DESCRIPTIONS = {
+    "understanding": "我会用温柔、同理心的方式倾听你，让你感到被理解和支持。",
+    "sarcastic": "我会直接说出你不想听的真话，毫不留情地指出问题。准备好被怼了吗？",
+    "therapist": "我会像治疗师一样，帮你分析问题根源，并给出具体建议。",
+}
+
+HELP_MESSAGE = """TransUs 对话模式：
+
+🤗 理解模式 - 温柔倾听，给你温暖和支持
+   发送：/理解模式
+
+😈 毒舌模式 - 直接说真话，毫不留情指出问题
+   发送：/毒舌模式 或 /毒舌
+
+🧠 治疗师模式 - 深入分析，提供具体建议
+   发送：/治疗模式
+
+当前模式会被保存，你随时可以切换！"""
+
 
 class WechatChatService:
     def __init__(self, db: Session) -> None:
@@ -35,6 +72,23 @@ class WechatChatService:
         user.is_subscribed = subscribed
         user.last_active = datetime.utcnow()
         self.db.commit()
+
+    def get_user_mode(self, openid: str) -> str:
+        """Get the current chat mode for a user."""
+        user = self.get_or_create_user(openid)
+        return user.chat_mode
+
+    def set_user_mode(self, openid: str, mode: str) -> None:
+        """Set the chat mode for a user."""
+        user = self.get_or_create_user(openid)
+        user.chat_mode = mode
+        user.last_active = datetime.utcnow()
+        self.db.commit()
+
+    def check_mode_switch(self, content: str) -> Optional[str]:
+        """Check if the message is a mode switch command and return the new mode."""
+        content_lower = content.strip().lower()
+        return MODE_COMMANDS.get(content_lower)
 
     def is_duplicate_message(self, msg_id: str) -> bool:
         if not msg_id:
@@ -80,6 +134,30 @@ class WechatChatService:
 
     async def respond_to_text(self, openid: str, content: str, msg_id: Optional[str]) -> Tuple[str, int]:
         cleaned = sanitize_user_text(content)
+
+        # Check for help command
+        if cleaned.strip().lower() in ["/help", "/帮助", "帮助"]:
+            self.store_message(openid, "user", cleaned, "text", msg_id)
+            current_mode = self.get_user_mode(openid)
+            current_mode_name = MODE_NAMES_CN.get(current_mode, current_mode)
+            reply = f"{HELP_MESSAGE}\n\n当前模式：{current_mode_name}"
+            self.store_message(openid, "assistant", reply, "text", latency_ms=0)
+            return reply, 0
+
+        # Check if this is a mode switch command
+        new_mode = self.check_mode_switch(cleaned)
+        if new_mode:
+            self.store_message(openid, "user", cleaned, "text", msg_id)
+            self.set_user_mode(openid, new_mode)
+            mode_name = MODE_NAMES_CN.get(new_mode, new_mode)
+            description = MODE_DESCRIPTIONS.get(new_mode, "")
+            reply = f"已切换到{mode_name}\n\n{description}\n\n现在你可以开始和我聊天了！"
+            self.store_message(openid, "assistant", reply, "text", latency_ms=0)
+            return reply, 0
+
+        # Get user's current mode
+        current_mode = self.get_user_mode(openid)
+
         self.store_message(openid, "user", cleaned, "text", msg_id)
         context = self.build_context(openid)
         context.append(ChatMessage(role="user", content=cleaned))
@@ -88,7 +166,7 @@ class WechatChatService:
         timeout_seconds = settings.WECHAT_AI_TIMEOUT_MS / 1000
         try:
             reply = await asyncio.wait_for(
-                asyncio.to_thread(generate_wechat_response, context),
+                asyncio.to_thread(generate_wechat_response, context, current_mode),
                 timeout=timeout_seconds,
             )
         except asyncio.TimeoutError:
